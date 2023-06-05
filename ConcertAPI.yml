@@ -1,0 +1,580 @@
+openapi: 3.0.0
+info:
+  version: '1.0.0'
+  title: Concert Management API
+  description: RESTful API for Concert Management Api
+  contact:
+    name: LawnMan 
+    email: lawnman091288@gmail.com
+
+servers:
+  - url: https://localhost:44395
+    description: IIS Express when running locally  
+  
+tags:
+  - name: Concerts
+  - name: Management
+
+components:
+  securitySchemes:
+    oAuth2ClientCredentials:
+      type: oauth2
+      description: AWS Cognito
+      flows: 
+        clientCredentials:
+          tokenUrl: https://login.microsoftonline.com/53049b77-3e8f-4792-977f-0a3e5f23891b/oauth2/v2.0/token
+          scopes: 
+            api://624b5c05-09c4-4155-a333-28bab78f4579/.default: tte
+
+  headers:
+    X-Request-ID:
+      description: To support communications level correlation due to some responses only having header data, a round-trip identifier (GUID) will be sent on every call from the consumer and returned by the service provider (or intermediary) regardless of the final disposition of the request/message.
+      required: true
+      schema:
+        type: string
+        format: uuid
+        example: 123e4567-e89b-12d3-a456-426655440000
+    X-Correlation-ID:
+      description: To support communications level tracking between the source and final destinations, a unique round-trip identifier (GUID) will be sent on every call from the caller and returned in the response by the service providers regardless of the final disposition of the request/message. The x-correlation-id can be re-used by intermediaries and/or service-providers to communicate beyond themselves indicating that the calls they are making are part of the same original message (i.e., they are correlated).
+      required: true
+      schema:
+        type: string
+        format: uuid
+        example: 123e4567-e89b-12d3-a456-426655440000
+    X-Messages:
+      description: Indicating messages/faults/errors returned.
+      schema:
+        type: boolean
+        default: false
+    X-BusinessCorrelationId:
+      description: The correlation identification as related to business functions and activities. Generally expected to be a GUID.
+      schema:
+        type: string
+    X-WorkflowCorrelationId:
+      description: The correlation identification as related to workflow functions and activities. Generally expected to be a GUID.
+      schema:
+        type: string
+    X-Rate-Limit-Limit:
+      description: The number of times you can request the given endpoint within a window.
+      required: false
+      schema:
+        type: string
+    X-Rate-Limit-Remaining:
+      description: The number of times you have left for a given endpoint within a window.
+      required: false
+      schema:
+        type: string
+    X-Rate-Limit-Reset:
+      description: The time left until the window resets.
+      required: false
+      schema:
+        type: string
+    Retry-After:
+      description: The number of seconds left until the window resets.
+      required: true
+      schema:
+        type: string
+    api-supported-versions:
+      description: Versions supported by the API.
+      schema:
+        type: string
+    api-deprecated-versions:
+      description: Versions not supported or deprecated by the API.
+      schema:
+        type: string
+
+  schemas:
+    Detail:
+      type: object
+      properties:
+        Code:
+          description: The code assigned to a provider's status.
+          type: string
+        Category:
+          description: ENUM[Error, Fault, Warning, Overridden] The category assigned to a provider's message status.
+          type: string
+        Description:
+          description: The description related to the status code in a human readable format.
+          type: string
+        Element:
+          description: When an Error or Fault occurs this optional element will contain the element which is causing the condition.
+          type: string
+        ElementValue: 
+          description: When an Error or Fault occurs this optional element will contain the value of the element which is causing the condition.
+          type: string
+        Location:
+          description: This is typically the program that generated the status condition.
+          type: string
+      required:
+        - Code
+        - Category
+        - Description
+    DetailArray:
+      type: array
+      maxItems: 50
+      items:
+        $ref: '#/components/schemas/Detail'
+    MessageStatus:
+      type: object
+      description: '`MessageStatus` is required/expected for non 2xx responses.'
+      properties:
+        ResponseCode:
+          description: The code related to message responses.
+          type: string
+        Description:
+          description: The description related to the status code in a human readable format.
+          type: string
+        MessageSource:
+          description: The source of the response to a message. This would represent the service provider that carried out the business service for the message.
+          type: string
+        MessageSourceResponse:
+          type: object
+          additionalProperties: true
+        Details:
+          $ref: '#/components/schemas/DetailArray'
+        Logs:
+          description: The array of logs as related to a response code.
+          type: array
+          items:
+            type: object
+            properties:
+              Store: 
+                description: The store that retains log entries.
+                type: string
+              Key:
+                description: The key related to a log entry specific to the log store.
+                type: string
+
+    Paging:
+      type: object
+      properties:
+        Results:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Number of results returned.
+        Total:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Total number of results.
+        NextOffset:
+          type: string
+
+    ConcertRequest:
+      type: object
+      required:
+        - AccountNumber
+        - BillerName
+        - Zip
+      properties:
+        AccountNumber:
+          description: Account number to use for biller match.
+          maxLength: 50
+          type: string
+          nullable: false
+        BillerName:
+          description: Name of the biller to use for biller match.
+          maxLength: 50
+          type: string
+          nullable: false
+        Zip:
+          description: ZIP Code of the biller's payment address.
+          maxLength: 10
+          type: string
+          pattern: ^(\d{5}|[\d]{5}-[\d]{4})$
+
+    BillerAddress:
+      type: object
+      readOnly: true
+      properties:
+        Address1:
+          readOnly: true
+          type: string
+        Address2:
+          readOnly: true
+          type: string
+        City:
+          readOnly: true
+          type: string
+          maxLength: 30
+        State:
+          readOnly: true
+          type: string
+          maxLength: 5 # ISO 3166-2
+          pattern: ^(US-[A-Z]{2})$
+        Zip:
+          readOnly: true
+          type: string
+          maxLength: 10
+          pattern: ^(\d{5}|[\d]{5}-[\d]{4})$
+    
+    Guid:
+      readOnly: true
+      type: string
+      format: uuid
+      maxLength: 38
+      pattern: ^(\{){0,1}[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}(\}){0,1}$
+
+    MatchedBiller:
+      type: object
+      properties:
+        BillerId:
+          $ref: "#/components/schemas/Guid"
+        BillerName:
+          type: string
+          readOnly: true
+        BillerAddress:
+          $ref: "#/components/schemas/BillerAddress"
+
+    MatchBillerResponse:
+      type: object
+      description: Billers that match the MatchBillerRequest properties.
+      properties:
+        MatchedBillers:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/MatchedBiller"
+        MessageStatus:
+          $ref: "#/components/schemas/MessageStatus"
+        Paging:
+          $ref: '#/components/schemas/Paging'           
+
+  responses:
+    Unauthorized:
+      description: Unauthorized.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/X-Request-ID'
+        X-Correlation-ID:
+          $ref: '#/components/headers/X-Correlation-ID'
+        X-BusinessCorrelationId:
+          $ref: '#/components/headers/X-BusinessCorrelationId'
+        X-WorkflowCorrelationId:
+          $ref: '#/components/headers/X-WorkflowCorrelationId'
+
+    Forbidden:
+      description: Forbidden.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/X-Request-ID'
+        X-Correlation-ID:
+          $ref: '#/components/headers/X-Correlation-ID'
+        X-Messages:
+          $ref: '#/components/headers/X-Messages'
+        X-BusinessCorrelationId:
+          $ref: '#/components/headers/X-BusinessCorrelationId'
+        X-WorkflowCorrelationId:
+          $ref: '#/components/headers/X-WorkflowCorrelationId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageStatus'
+
+    NotFound:
+      description: The specified resource was not found.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/X-Request-ID'
+        X-Correlation-ID:
+          $ref: '#/components/headers/X-Correlation-ID'
+        X-BusinessCorrelationId:
+          $ref: '#/components/headers/X-BusinessCorrelationId'
+        X-WorkflowCorrelationId:
+          $ref: '#/components/headers/X-WorkflowCorrelationId'
+
+    InternalServerError:
+      description: Internal server error.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/X-Request-ID'
+        X-Correlation-ID:
+          $ref: '#/components/headers/X-Correlation-ID'
+        X-Messages:
+          $ref: '#/components/headers/X-Messages'
+        X-BusinessCorrelationId:
+          $ref: '#/components/headers/X-BusinessCorrelationId'
+        X-WorkflowCorrelationId:
+          $ref: '#/components/headers/X-WorkflowCorrelationId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageStatus'
+
+    BadRequest:
+      description: One or more errors occurred.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/X-Request-ID'
+        X-Correlation-ID:
+          $ref: '#/components/headers/X-Correlation-ID'
+        X-Messages:
+          $ref: '#/components/headers/X-Messages'
+        X-BusinessCorrelationId:
+          $ref: '#/components/headers/X-BusinessCorrelationId'
+        X-WorkflowCorrelationId:
+          $ref: '#/components/headers/X-WorkflowCorrelationId'
+        api-supported-versions:
+          $ref: '#/components/headers/api-supported-versions'
+        api-deprecated-versions:
+          $ref: '#/components/headers/api-deprecated-versions'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageStatus'
+
+    RequestTimeout:
+      description: Request timeout.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/X-Request-ID'
+        X-Correlation-ID:
+          $ref: '#/components/headers/X-Correlation-ID'        
+        X-Messages:
+          $ref: '#/components/headers/X-Messages'
+        X-BusinessCorrelationId:
+          $ref: '#/components/headers/X-BusinessCorrelationId'
+        X-WorkflowCorrelationId:
+          $ref: '#/components/headers/X-WorkflowCorrelationId'
+        api-supported-versions:
+          $ref: '#/components/headers/api-supported-versions'
+        api-deprecated-versions:
+          $ref: '#/components/headers/api-deprecated-versions'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageStatus'
+
+    TooManyRequests:
+      description: Too many requests.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/X-Request-ID'
+        X-Correlation-ID:
+          $ref: '#/components/headers/X-Correlation-ID'
+        X-Rate-Limit-Limit:
+          $ref: '#/components/headers/X-Rate-Limit-Limit'
+        X-Rate-Limit-Remaining:
+          $ref: '#/components/headers/X-Rate-Limit-Remaining'
+        X-Rate-Limit-Reset:
+          $ref: '#/components/headers/X-Rate-Limit-Reset'
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
+        X-Messages:
+          $ref: '#/components/headers/X-Messages'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageStatus'
+            
+    MessageStatusResponse:
+      description: Message status response.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/X-Request-ID'
+        X-Correlation-ID:
+          $ref: '#/components/headers/X-Correlation-ID'
+        X-Messages:
+          $ref: '#/components/headers/X-Messages'
+        X-BusinessCorrelationId:
+          $ref: '#/components/headers/X-BusinessCorrelationId'
+        X-WorkflowCorrelationId:
+          $ref: '#/components/headers/X-WorkflowCorrelationId'
+        X-Rate-Limit-Limit:
+          $ref: '#/components/headers/X-Rate-Limit-Limit'
+        X-Rate-Limit-Remaining:
+          $ref: '#/components/headers/X-Rate-Limit-Remaining'
+        X-Rate-Limit-Reset:
+          $ref: '#/components/headers/X-Rate-Limit-Reset'          
+        api-supported-versions:
+          $ref: '#/components/headers/api-supported-versions'
+        api-deprecated-versions:
+          $ref: '#/components/headers/api-deprecated-versions'
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              MessageStatus:
+                $ref: '#/components/schemas/MessageStatus'
+
+    DefaultUnexpectedErrorResponse:
+      description: Unexpected error.
+      headers:
+        X-Messages:
+          $ref: '#/components/headers/X-Messages'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageStatus' 
+
+  parameters:
+    apiVersionParam:
+      in: path
+      name: apiversion
+      required: true
+      schema:
+        type: string
+        nullable: false
+        format: ^[0-9]$
+      description: The API version.
+    xCorrelationIdHeader:
+      in: header
+      name: X-Correlation-ID
+      description: To support communications level tracking between the source and final destinations, a unique round-trip identifier (GUID) will be sent on every call from the caller and returned in the response by the service provider regardless of the final disposition of the request/message. The x-correlation-id can be re-used by intermediaries and/or service-providers to communicate beyond themselves indicating that the calls they are making are part of the same original message (i.e., they are correlated).
+      required: true
+      schema:
+        type: string
+        format: uuid
+        example: 123e4567-e89b-12d3-a456-426655440000
+    xRequestIdHeader:
+      in: header
+      name: X-Request-ID
+      description: To support communications level correlation due to some responses only having header data, a round-trip identifier (GUID) will be sent on every call from the consumer and returned by the service provider (or intermediary) regardless of the final disposition of the request/message.
+      required: true
+      schema:
+        type: string
+        format: uuid
+        example: 123e4567-e89b-12d3-a456-426655440000
+    xDateHeader:
+      in: header
+      name: Date
+      description: Standard HTTP header element for date and time. HTTP headers are represented as RFC 7231 Full Dates. Example Date "Wed, 21 Oct 2015 07:28:00 GMT".
+      required: false
+      schema:
+        type: string
+    xContentTypeHeader:
+      in: header
+      name: Content-Type
+      required: true
+      schema:
+        type: string
+        default: application/json
+    xAuditUserIdHeader:
+      in: header
+      name: X-AuditUserId
+      description: This is the User Id which the consumer would like written to the audit when performing the requested service. It will vary but could be down to the user id. It will not be used to authenticate, only audit information.
+      schema:
+        type: string
+    xAuditDeviceIdHeader:
+      in: header
+      name: X-AuditDeviceId
+      description: This is the device Id which the consumer would like written to the audit when performing the requested service. It will vary but could be down to the machine id.
+      schema:
+        type: string
+    xBusinessCorrelationIdHeader:
+      in: header
+      name: X-BusinessCorrelationId
+      description: The correlation identification as related to business functions and activities. Generally expected to be a GUID.
+      schema:
+        type: string
+    xWorkflowCorrelationIdHeader:
+      in: header
+      name: X-WorkflowCorrelationId
+      description: The correlation identification as related to workflow functions and activities. Generally expected to be a GUID.
+      schema:
+        type: string    
+        
+paths: 
+  /v{apiversion}/status:
+    parameters:
+        - $ref: '#/components/parameters/xDateHeader'
+        - $ref: '#/components/parameters/xContentTypeHeader'
+        - $ref: '#/components/parameters/xRequestIdHeader'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - $ref: '#/components/parameters/xAuditUserIdHeader'
+        - $ref: '#/components/parameters/xAuditDeviceIdHeader'
+        - $ref: '#/components/parameters/xBusinessCorrelationIdHeader'
+        - $ref: '#/components/parameters/xWorkflowCorrelationIdHeader'        
+        - $ref: '#/components/parameters/apiVersionParam'
+    get:
+      description: Returns API status.
+      operationId: getApiStatus
+      tags:
+        - Management
+      responses:
+        '200':
+          $ref: '#/components/responses/MessageStatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '408':
+          $ref: '#/components/responses/RequestTimeout'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        default:
+          $ref: '#/components/responses/DefaultUnexpectedErrorResponse'
+  /v{apiversion}/match-biller:
+    parameters:
+        - $ref: '#/components/parameters/xDateHeader'
+        - $ref: '#/components/parameters/xContentTypeHeader'
+        - $ref: '#/components/parameters/xRequestIdHeader'
+        - $ref: '#/components/parameters/xCorrelationIdHeader'
+        - $ref: '#/components/parameters/xAuditUserIdHeader'
+        - $ref: '#/components/parameters/xAuditDeviceIdHeader'
+        - $ref: '#/components/parameters/xBusinessCorrelationIdHeader'
+        - $ref: '#/components/parameters/xWorkflowCorrelationIdHeader'
+        - $ref: '#/components/parameters/apiVersionParam'
+    post:
+      description: Run a match against the biller directory.
+      operationId: matchBiller
+      tags:
+        - Billers
+      requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchBillerRequest'
+      responses:
+          '200':
+            description: Successfully returns matched billers when available, if not returns a warning.
+            headers:
+              X-Request-ID:
+                $ref: '#/components/headers/X-Request-ID'
+              X-Correlation-ID:
+                $ref: '#/components/headers/X-Correlation-ID'
+              X-Messages:
+                $ref: '#/components/headers/X-Messages'
+              X-BusinessCorrelationId:
+                $ref: '#/components/headers/X-BusinessCorrelationId'
+              X-WorkflowCorrelationId:
+                $ref: '#/components/headers/X-WorkflowCorrelationId'
+              X-Rate-Limit-Limit:
+                $ref: '#/components/headers/X-Rate-Limit-Limit'
+              X-Rate-Limit-Remaining:
+                $ref: '#/components/headers/X-Rate-Limit-Remaining'
+              X-Rate-Limit-Reset:
+                $ref: '#/components/headers/X-Rate-Limit-Reset'
+              api-supported-versions:
+                $ref: '#/components/headers/api-supported-versions'
+              api-deprecated-versions:
+                $ref: '#/components/headers/api-deprecated-versions'
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/MatchBillerResponse'
+          '400':
+            $ref: '#/components/responses/BadRequest'
+          '401':
+            $ref: '#/components/responses/Unauthorized'
+          '403':
+            $ref: '#/components/responses/Forbidden'
+          '404':
+            $ref: '#/components/responses/NotFound'
+          '408':
+            $ref: '#/components/responses/RequestTimeout'
+          '429':
+            $ref: '#/components/responses/TooManyRequests'
+          '500':
+            $ref: '#/components/responses/InternalServerError'
+          default:
+            $ref: '#/components/responses/DefaultUnexpectedErrorResponse'
