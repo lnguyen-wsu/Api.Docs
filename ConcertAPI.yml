@@ -165,26 +165,26 @@ components:
       type: object
       required:
         - AccountNumber
-        - BillerName
+        - ConcertName
         - Zip
       properties:
         AccountNumber:
-          description: Account number to use for biller match.
+          description: Account number to use for Concert match.
           maxLength: 50
           type: string
           nullable: false
-        BillerName:
-          description: Name of the biller to use for biller match.
+        ConcertName:
+          description: Name of the Concert to use for Concert match.
           maxLength: 50
           type: string
           nullable: false
         Zip:
-          description: ZIP Code of the biller's payment address.
+          description: ZIP Code of the Concert's payment address.
           maxLength: 10
           type: string
           pattern: ^(\d{5}|[\d]{5}-[\d]{4})$
 
-    BillerAddress:
+    ConcertAddress:
       type: object
       readOnly: true
       properties:
@@ -216,26 +216,26 @@ components:
       maxLength: 38
       pattern: ^(\{){0,1}[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}(\}){0,1}$
 
-    MatchedBiller:
+    MatchedConcert:
       type: object
       properties:
-        BillerId:
+        ConcertId:
           $ref: "#/components/schemas/Guid"
-        BillerName:
+        ConcertName:
           type: string
           readOnly: true
-        BillerAddress:
-          $ref: "#/components/schemas/BillerAddress"
+        ConcertAddress:
+          $ref: "#/components/schemas/ConcertAddress"
 
-    MatchBillerResponse:
+    MatchConcertResponse:
       type: object
-      description: Billers that match the MatchBillerRequest properties.
+      description: Concerts that match the MatchConcertRequest properties.
       properties:
-        MatchedBillers:
+        MatchedConcerts:
           type: array
           maxItems: 100
           items:
-            $ref: "#/components/schemas/MatchedBiller"
+            $ref: "#/components/schemas/MatchedConcert"
         MessageStatus:
           $ref: "#/components/schemas/MessageStatus"
         Paging:
@@ -512,7 +512,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         default:
           $ref: '#/components/responses/DefaultUnexpectedErrorResponse'
-  /v{apiversion}/match-biller:
+  /v{apiversion}/match-Concert:
     parameters:
         - $ref: '#/components/parameters/xDateHeader'
         - $ref: '#/components/parameters/xContentTypeHeader'
@@ -524,19 +524,19 @@ paths:
         - $ref: '#/components/parameters/xWorkflowCorrelationIdHeader'
         - $ref: '#/components/parameters/apiVersionParam'
     post:
-      description: Run a match against the biller directory.
-      operationId: matchBiller
+      description: Run a match against the Concert directory.
+      operationId: matchConcert
       tags:
-        - Billers
+        - Concerts
       requestBody:
           required: true
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MatchBillerRequest'
+                $ref: '#/components/schemas/MatchConcertRequest'
       responses:
           '200':
-            description: Successfully returns matched billers when available, if not returns a warning.
+            description: Successfully returns matched Concerts when available, if not returns a warning.
             headers:
               X-Request-ID:
                 $ref: '#/components/headers/X-Request-ID'
@@ -561,7 +561,7 @@ paths:
             content:
               application/json:
                 schema:
-                  $ref: '#/components/schemas/MatchBillerResponse'
+                  $ref: '#/components/schemas/MatchConcertResponse'
           '400':
             $ref: '#/components/responses/BadRequest'
           '401':
