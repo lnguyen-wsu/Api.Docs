@@ -163,52 +163,62 @@ components:
 
     ConcertRequest:
       type: object
-      required:
-        - AccountNumber
+      required: 
         - ConcertName
-        - Zip
+        - Celebrity
+        - City
+        - Date
       properties:
-        AccountNumber:
-          description: Account number to use for Concert match.
-          maxLength: 50
-          type: string
-          nullable: false
         ConcertName:
-          description: Name of the Concert to use for Concert match.
+          description: For specific Concert Name.
           maxLength: 50
           type: string
           nullable: false
-        Zip:
-          description: ZIP Code of the Concert's payment address.
-          maxLength: 10
+        Celebrity:
+          description: Name of the Celebrity to use for Concert.
+          maxLength: 50
           type: string
-          pattern: ^(\d{5}|[\d]{5}-[\d]{4})$
-
-    ConcertAddress:
-      type: object
-      readOnly: true
-      properties:
-        Address1:
-          readOnly: true
-          type: string
-        Address2:
-          readOnly: true
-          type: string
+          nullable: false
         City:
-          readOnly: true
+          description: City where consert is performing.
+          maxLength: 2
           type: string
-          maxLength: 30
-        State:
-          readOnly: true
+          pattern: ^[a-zA-Z]{3}$
+        Date:
+          description: Date where consert is performing.
           type: string
-          maxLength: 5 # ISO 3166-2
-          pattern: ^(US-[A-Z]{2})$
-        Zip:
-          readOnly: true
+          format: date-time
+          pattern: /([0-9]{4})-(?:[0-9]{2})-([0-9]{2})/
+
+    Ticket:
+      type: object
+      required:
+        - Name
+        - Price
+        - Date
+        - SeatNumber
+    Concert:  
+      type: object
+      required: 
+        - ConcertName
+        - Celebrity
+        - AvailableTickets
+        - Ticket
+      properties:
+        ConcertName:
+          description: For specific Concert Name.
+          maxLength: 50
           type: string
-          maxLength: 10
-          pattern: ^(\d{5}|[\d]{5}-[\d]{4})$
-    
+          nullable: false       
+        Celebrity:
+          description: Name of the Celebrity to use for Concert.
+          maxLength: 50
+          type: string
+          nullable: false
+        Ticket:
+          type: object
+          $ref: "#/components/schemas/Ticket"
+          
     Guid:
       readOnly: true
       type: string
@@ -216,26 +226,15 @@ components:
       maxLength: 38
       pattern: ^(\{){0,1}[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}(\}){0,1}$
 
-    MatchedConcert:
-      type: object
-      properties:
-        ConcertId:
-          $ref: "#/components/schemas/Guid"
-        ConcertName:
-          type: string
-          readOnly: true
-        ConcertAddress:
-          $ref: "#/components/schemas/ConcertAddress"
-
     MatchConcertResponse:
       type: object
-      description: Concerts that match the MatchConcertRequest properties.
+      description: Concerts that match the ConcertRequest properties.
       properties:
         MatchedConcerts:
           type: array
           maxItems: 100
           items:
-            $ref: "#/components/schemas/MatchedConcert"
+            $ref: "#/components/schemas/Concert"
         MessageStatus:
           $ref: "#/components/schemas/MessageStatus"
         Paging:
@@ -512,7 +511,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         default:
           $ref: '#/components/responses/DefaultUnexpectedErrorResponse'
-  /v{apiversion}/match-Concert:
+  /v{apiversion}/Concert:
     parameters:
         - $ref: '#/components/parameters/xDateHeader'
         - $ref: '#/components/parameters/xContentTypeHeader'
@@ -523,7 +522,7 @@ paths:
         - $ref: '#/components/parameters/xBusinessCorrelationIdHeader'
         - $ref: '#/components/parameters/xWorkflowCorrelationIdHeader'
         - $ref: '#/components/parameters/apiVersionParam'
-    post:
+    get:
       description: Run a match against the Concert directory.
       operationId: matchConcert
       tags:
@@ -533,7 +532,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MatchConcertRequest'
+                $ref: '#/components/schemas/ConcertRequest'
       responses:
           '200':
             description: Successfully returns matched Concerts when available, if not returns a warning.
